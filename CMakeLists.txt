@@ -24,107 +24,117 @@ option(IMGUI_INSTALL "Enable installation of the library" OFF)
 option(IMGUI_BRING_YOUR_OWN_BACKEND "Disable backend check and assume user provides their own backend" OFF)
 option(IMGUI_DISABLE_SET_IMGUI_DIR "Disable setting the IMGUI_DIR variable" OFF)
 
+# Define the library
 add_library(${PROJECT_NAME})
 
-#
-# Make sure #include <imgui.h> works at build-time and install-time.
-#
+# Point to the `imgui` submodule as the source root
+set(IMGUI_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/imgui)
+
+# Add ImGui core sources
+set(IMGUI_SOURCES
+    ${IMGUI_ROOT}/imconfig.h
+    ${IMGUI_ROOT}/imgui.cpp
+    ${IMGUI_ROOT}/imgui.h
+    ${IMGUI_ROOT}/imgui_demo.cpp
+    ${IMGUI_ROOT}/imgui_draw.cpp
+    ${IMGUI_ROOT}/imgui_internal.h
+    ${IMGUI_ROOT}/imgui_tables.cpp
+    ${IMGUI_ROOT}/imgui_widgets.cpp
+    ${IMGUI_ROOT}/imstb_rectpack.h
+    ${IMGUI_ROOT}/imstb_textedit.h
+    ${IMGUI_ROOT}/imstb_truetype.h
+)
+
+# If backends are enabled, append their sources
+if(IMGUI_ENABLE_OPENGL2)
+    list(APPEND IMGUI_SOURCES
+        ${IMGUI_ROOT}/backends/imgui_impl_opengl2.cpp
+        ${IMGUI_ROOT}/backends/imgui_impl_opengl2.h
+    )
+endif()
+
+if(IMGUI_ENABLE_OPENGL3)
+    list(APPEND IMGUI_SOURCES
+        ${IMGUI_ROOT}/backends/imgui_impl_opengl3.cpp
+        ${IMGUI_ROOT}/backends/imgui_impl_opengl3.h
+        ${IMGUI_ROOT}/backends/imgui_impl_opengl3_loader.h
+    )
+endif()
+
+if(IMGUI_ENABLE_GLFW)
+    list(APPEND IMGUI_SOURCES
+        ${IMGUI_ROOT}/backends/imgui_impl_glfw.cpp
+        ${IMGUI_ROOT}/backends/imgui_impl_glfw.h
+    )
+    if(NOT IMGUI_DISABLE_FIND_PACKAGE)
+        find_package(glfw3 REQUIRED)
+    endif()
+    target_link_libraries(${PROJECT_NAME} PRIVATE glfw)
+endif()
+
+if(IMGUI_ENABLE_SDL2)
+    list(APPEND IMGUI_SOURCES
+        ${IMGUI_ROOT}/backends/imgui_impl_sdl2.cpp
+        ${IMGUI_ROOT}/backends/imgui_impl_sdl2.h
+    )
+    if(NOT IMGUI_DISABLE_FIND_PACKAGE)
+        find_package(SDL2 REQUIRED)
+    endif()
+    target_link_libraries(${PROJECT_NAME} PRIVATE SDL2::SDL2)
+endif()
+
+if(IMGUI_ENABLE_SDL3)
+    list(APPEND IMGUI_SOURCES
+        ${IMGUI_ROOT}/backends/imgui_impl_sdl3.cpp
+        ${IMGUI_ROOT}/backends/imgui_impl_sdl3.h
+    )
+    if(NOT IMGUI_DISABLE_FIND_PACKAGE)
+        find_package(SDL3 REQUIRED)
+    endif()
+    target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
+endif()
+
+# Handle other backends in a similar fashion...
+
+# Ensure build-time and install-time includes work
 target_include_directories(${PROJECT_NAME}
     PUBLIC
-        # Where to find headers during build:
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
-
-        # Where to look for headers once installed (root-level include/):
+        $<BUILD_INTERFACE:${IMGUI_ROOT}>
         $<INSTALL_INTERFACE:include>
 )
 
-#
-# Core ImGui sources
-#
-set(IMGUI_SOURCES
-    imconfig.h
-    imgui.cpp
-    imgui.h
-    imgui_demo.cpp
-    imgui_draw.cpp
-    imgui_internal.h
-    imgui_tables.cpp
-    imgui_widgets.cpp
-    imstb_rectpack.h
-    imstb_textedit.h
-    imstb_truetype.h
-)
-
-# (Optional) Add backends here if you enable them via IMGUI_ENABLE_ flags
-
-# If user doesn't supply their own backend and none are enabled, throw an error
-if(NOT IMGUI_BRING_YOUR_OWN_BACKEND)
-    if(
-        NOT IMGUI_ENABLE_OPENGL2
-        AND NOT IMGUI_ENABLE_OPENGL3
-        AND NOT IMGUI_ENABLE_GLFW
-        AND NOT IMGUI_ENABLE_SDL2
-        AND NOT IMGUI_ENABLE_SDL3
-        AND NOT IMGUI_ENABLE_SDLRENDERER2
-        AND NOT IMGUI_ENABLE_SDLRENDERER3
-        AND NOT IMGUI_ENABLE_VULKAN
-        AND NOT IMGUI_ENABLE_WIN32
-        AND NOT IMGUI_ENABLE_METAL
-        AND NOT IMGUI_ENABLE_ALLEGRO5
-        AND NOT IMGUI_ENABLE_ANDROID
-        AND NOT IMGUI_ENABLE_DX9
-        AND NOT IMGUI_ENABLE_DX10
-        AND NOT IMGUI_ENABLE_DX11
-        AND NOT IMGUI_ENABLE_DX12
-        AND NOT IMGUI_ENABLE_WGPU
-        AND NOT IMGUI_ENABLE_OSX
-    )
-        message(FATAL_ERROR "No backend has been enabled. Please enable at least one backend, or use IMGUI_BRING_YOUR_OWN_BACKEND.")
-    endif()
-endif()
-
-#
-# Optionally store the top-level ImGui path in IMGUI_DIR
-#
-if(NOT IMGUI_DISABLE_SET_IMGUI_DIR)
-    set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE PATH "ImGui top-level directory")
-endif()
-
+# Add the sources to the library
 target_sources(${PROJECT_NAME} PRIVATE ${IMGUI_SOURCES})
 
-#
-# Compiler options
-#
+# Compiler warnings
 if(CMAKE_CXX_COMPILER_ID STREQUAL Clang OR CMAKE_CXX_COMPILER_ID STREQUAL GNU)
     target_compile_options(${PROJECT_NAME} PRIVATE
         -Wno-conversion
     )
 endif()
 
-#
-# Install logic: place library + headers so #include <imgui.h> works
-#
+# Installation logic
 if(IMGUI_INSTALL)
     install(TARGETS ${PROJECT_NAME}
-        EXPORT       imguiTargets
-        LIBRARY      DESTINATION lib
-        ARCHIVE      DESTINATION lib
-        RUNTIME      DESTINATION bin
-        INCLUDES     DESTINATION include
+        EXPORT imguiTargets
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+        INCLUDES DESTINATION include
     )
 
     install(FILES
-        imgui.h
-        imconfig.h
-        imgui_internal.h
-        imstb_rectpack.h
-        imstb_textedit.h
-        imstb_truetype.h
-        DESTINATION include  # <-- Puts them in the root-level "include/" folder
+        ${IMGUI_ROOT}/imgui.h
+        ${IMGUI_ROOT}/imconfig.h
+        ${IMGUI_ROOT}/imgui_internal.h
+        ${IMGUI_ROOT}/imstb_rectpack.h
+        ${IMGUI_ROOT}/imstb_textedit.h
+        ${IMGUI_ROOT}/imstb_truetype.h
+        DESTINATION include
     )
 
     install(EXPORT imguiTargets
-        FILE      imguiTargets.cmake
+        FILE imguiTargets.cmake
         NAMESPACE ImGui::
         DESTINATION lib/cmake/imgui
     )
