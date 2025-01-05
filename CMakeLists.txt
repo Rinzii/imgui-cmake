@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(imgui)
+project(imgui VERSION 1.91.6)
 
 option(IMGUI_ENABLE_OPENGL2 "Enable OpenGL2 backend" OFF)
 option(IMGUI_ENABLE_OPENGL3 "Enable OpenGL3 backend" OFF)
