@@ -30,6 +30,10 @@ add_library(${PROJECT_NAME})
 # Point to the `imgui` submodule as the source root
 set(IMGUI_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/imgui)
 
+if(NOT IMGUI_DISABLE_SET_IMGUI_DIR)
+    set(IMGUI_DIR ${IMGUI_ROOT} CACHE PATH "ImGui top-level directory")
+endif()
+
 # Add ImGui core sources
 set(IMGUI_SOURCES
     ${IMGUI_ROOT}/imconfig.h
