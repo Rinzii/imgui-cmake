@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(imgui LANGUAGES CXX)
+project(imgui)
 
 option(IMGUI_ENABLE_OPENGL2 "Enable OpenGL2 backend" OFF)
 option(IMGUI_ENABLE_OPENGL3 "Enable OpenGL3 backend" OFF)
@@ -94,13 +94,11 @@ if(IMGUI_ENABLE_SDL3)
     target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3)
 endif()
 
-# Handle other backends in a similar fashion...
-
 # Ensure build-time and install-time includes work
 target_include_directories(${PROJECT_NAME}
-    PUBLIC
+    INTERFACE
         $<BUILD_INTERFACE:${IMGUI_ROOT}>
-        $<INSTALL_INTERFACE:include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/imgui>
 )
 
 # Add the sources to the library
@@ -115,14 +113,18 @@ endif()
 
 # Installation logic
 if(IMGUI_INSTALL)
+    include(GNUInstallDirs)
+
+    # Install the library
     install(TARGETS ${PROJECT_NAME}
         EXPORT imguiTargets
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-        RUNTIME DESTINATION bin
-        INCLUDES DESTINATION include
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/imgui
     )
 
+    # Install core header files
     install(FILES
         ${IMGUI_ROOT}/imgui.h
         ${IMGUI_ROOT}/imconfig.h
@@ -130,12 +132,37 @@ if(IMGUI_INSTALL)
         ${IMGUI_ROOT}/imstb_rectpack.h
         ${IMGUI_ROOT}/imstb_textedit.h
         ${IMGUI_ROOT}/imstb_truetype.h
-        DESTINATION include
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/imgui
     )
 
+    # Install backends (optional, based on user needs)
+    install(DIRECTORY ${IMGUI_ROOT}/backends
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/imgui
+        FILES_MATCHING PATTERN "*.h"
+    )
+
+    # Install CMake configuration files for find_package
     install(EXPORT imguiTargets
         FILE imguiTargets.cmake
         NAMESPACE ImGui::
-        DESTINATION lib/cmake/imgui
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/imgui
+    )
+
+    include(CMakePackageConfigHelpers)
+    write_basic_package_version_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/imguiConfigVersion.cmake"
+        COMPATIBILITY SameMajorVersion
+    )
+
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/imguiConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/imguiConfig.cmake"
+        @ONLY
+    )
+
+    install(FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/imguiConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/imguiConfigVersion.cmake"
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/imgui
     )
 endif()
